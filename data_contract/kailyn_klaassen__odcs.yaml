@@ -1,0 +1,1933 @@
+name: Energy Plant Operations Data Contract
+apiVersion: v3.0.0
+kind: DataContract
+id: energy-plant-operations-data-contract
+version: 1.0.0
+domain: null
+status: active
+dataProduct: Renewable Plant Operations
+tenant: EnergyOperations
+description:
+  purpose: This data contract defines the schema and quality rules for renewable energy
+    plant operations data, including plant master data and high-frequency telemetry
+    from battery solar and wind assets.
+  usage: Used by data and operations teams to monitor plant performance track asset
+    health calculate KPIs for battery solar and wind assets and power reporting and
+    alerting across Bronze Silver and Gold medallion layers.
+  definitions:
+  - label: Plant Master Data Schema
+    url: https://energy-docs.example.com/plant-details-schema
+  - label: Telemetry Feed Schemas (Battery, Solar, Wind)
+    url: https://energy-docs.example.com/telemetry-feed-schemas
+  - label: Plant Operations KPI Gold Model
+    url: https://energy-docs.example.com/plant-operations-kpi-gold
+customProperties:
+- property: authored_date
+  value: '2025-12-09 18:01:46'
+schema:
+- name: plant_details_bronze
+  physicalName: plant_details_bronze
+  physicalType: table
+  logicalType: object
+  description: Raw ingested master data for each energy plant (Bronze layer).
+  tags:
+  - category:master_data
+  - layer:bronze
+  - sla:tier1
+  properties:
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the plant.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_name
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Name of the energy plant.
+    tags:
+    - pii:false
+  - name: plant_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Type of energy generation: Battery, Solar, Wind.'
+    tags:
+    - pii:false
+    - category:plant_classification
+  - name: regulatory_category
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Regulatory classification: NERC or FERC.'
+    tags:
+    - pii:false
+    - category:compliance
+  - name: internal_regulatory_category
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Internal regulation classification: NEER (NextEra Energy) or FPL
+      (Florida Power & Light).'
+    tags:
+    - pii:false
+    - category:compliance
+  - name: latitude
+    physicalType: double
+    logicalType: decimal(10,6)
+    required: true
+    description: Latitude coordinate of plant location.
+    tags:
+    - pii:false
+    - category:geospatial
+  - name: longitude
+    physicalType: double
+    logicalType: decimal(10,6)
+    required: true
+    description: Longitude coordinate of plant location.
+    tags:
+    - pii:false
+    - category:geospatial
+  - name: address
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Physical address of the plant.
+    tags:
+    - pii:false
+  - name: city
+    physicalType: string
+    logicalType: string
+    required: false
+    description: City where plant is located.
+    tags:
+    - pii:false
+  - name: state
+    physicalType: string
+    logicalType: string
+    required: false
+    description: State where plant is located.
+    tags:
+    - pii:false
+  - name: zip_code
+    physicalType: integer
+    logicalType: string
+    required: false
+    description: ZIP code of plant location.
+    tags:
+    - pii:false
+  - name: capacity_mw
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: true
+    description: Total nameplate capacity in megawatts (MW).
+    tags:
+    - pii:false
+    - category:technical_specs
+  - name: commissioning_date
+    physicalType: date
+    logicalType: date
+    required: false
+    description: Date when plant began commercial operation.
+    tags:
+    - pii:false
+  - name: operator
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Company or entity operating the plant.
+    tags:
+    - pii:false
+  - name: owner
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Company or entity owning the plant.
+    tags:
+    - pii:false
+  - name: interconnection_voltage_kv
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: false
+    description: Grid interconnection voltage in kilovolts (kV).
+    tags:
+    - pii:false
+    - category:technical_specs
+  - name: balancing_authority
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Balancing authority area (e.g., MISO, PJM, CAISO, ERCOT).
+    tags:
+    - pii:false
+    - category:grid_operations
+  - name: status
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Current operational status: Active, Maintenance, Offline, Decommissioned.'
+    tags:
+    - pii:false
+  - name: created_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when plant record was created.
+    tags:
+    - pii:false
+    - category:audit
+  - name: updated_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when plant record was last updated.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'plant_details_bronze' table has data
+    query: SELECT COUNT(*) FROM plant_details_bronze
+    dimension: completeness
+    mustBeGreaterThan: 0
+  - type: sql
+    description: Ensures that plant_id in 'plant_details_bronze' is always populated
+    query: ' SELECT COUNT(*) AS null_plant_id_count FROM plant_details_bronze WHERE
+      plant_id IS NULL;'
+    mustBe: 0
+    dimension: completeness
+  - type: sql
+    description: Ensures plant_type in 'plant_details_bronze' is Battery, Solar or
+      Wind
+    query: ' SELECT CASE WHEN COUNT(*) = SUM(CASE WHEN plant_type IN (''Battery'',''Solar'',''Wind'')
+      OR plant_type IS NULL THEN 1 ELSE 0 END) THEN 0 ELSE 1 END AS plant_type_evaluation
+      FROM plant_details_bronze;'
+    mustBe: 0
+    dimension: consistency
+- name: plant_details_silver
+  physicalName: plant_details_silver
+  physicalType: table
+  logicalType: object
+  description: Cleaned and conformed master data for each energy plant (Silver layer).
+  tags:
+  - category:master_data
+  - layer:silver
+  - sla:tier1
+  properties:
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the plant.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_name
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Name of the energy plant.
+    tags:
+    - pii:false
+  - name: plant_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Type of energy generation: Battery, Solar, Wind.'
+    tags:
+    - pii:false
+    - category:plant_classification
+  - name: regulatory_category
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Regulatory classification: NERC or FERC.'
+    tags:
+    - pii:false
+    - category:compliance
+  - name: internal_regulatory_category
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Internal regulation classification: NEER or FPL.'
+    tags:
+    - pii:false
+    - category:compliance
+  - name: latitude
+    physicalType: double
+    logicalType: decimal(10,6)
+    required: true
+    description: Latitude coordinate of plant location.
+    tags:
+    - pii:false
+    - category:geospatial
+  - name: longitude
+    physicalType: double
+    logicalType: decimal(10,6)
+    required: true
+    description: Longitude coordinate of plant location.
+    tags:
+    - pii:false
+    - category:geospatial
+  - name: address
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Physical address of the plant.
+    tags:
+    - pii:false
+  - name: city
+    physicalType: string
+    logicalType: string
+    required: false
+    description: City where plant is located.
+    tags:
+    - pii:false
+  - name: state
+    physicalType: string
+    logicalType: string
+    required: false
+    description: State where plant is located.
+    tags:
+    - pii:false
+  - name: zip_code
+    physicalType: integer
+    logicalType: string
+    required: false
+    description: ZIP code of plant location.
+    tags:
+    - pii:false
+  - name: capacity_mw
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: true
+    description: Total nameplate capacity in megawatts (MW).
+    tags:
+    - pii:false
+    - category:technical_specs
+  - name: commissioning_date
+    physicalType: date
+    logicalType: date
+    required: false
+    description: Date when plant began commercial operation.
+    tags:
+    - pii:false
+  - name: operator
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Company or entity operating the plant.
+    tags:
+    - pii:false
+  - name: owner
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Company or entity owning the plant.
+    tags:
+    - pii:false
+  - name: interconnection_voltage_kv
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: false
+    description: Grid interconnection voltage in kilovolts (kV).
+    tags:
+    - pii:false
+    - category:technical_specs
+  - name: balancing_authority
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Balancing authority area (e.g., MISO, PJM, CAISO, ERCOT).
+    tags:
+    - pii:false
+    - category:grid_operations
+  - name: status
+    physicalType: string
+    logicalType: string
+    required: true
+    description: 'Current operational status: Active, Maintenance, Offline, Decommissioned.'
+    tags:
+    - pii:false
+  - name: created_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when plant record was created.
+    tags:
+    - pii:false
+    - category:audit
+  - name: updated_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when plant record was last updated.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'plant_details_silver' table has data
+    query: SELECT COUNT(*) FROM plant_details_silver
+    dimension: completeness
+    mustBeGreaterThan: 0
+  - type: sql
+    description: Ensures plant_id in 'plant_details_silver' is unique
+    query: ' SELECT CASE WHEN COUNT(plant_id) = COUNT(DISTINCT plant_id) THEN 0 ELSE
+      1 END AS plant_id_uniqueness_check FROM plant_details_silver;'
+    mustBe: 0
+    dimension: uniqueness
+  - type: sql
+    description: Ensures internal_regulatory_category in 'plant_details_silver' follows
+      the Florida/NEER rule
+    query: ' SELECT CASE WHEN COUNT(*) = SUM( CASE WHEN state = ''FL'' AND internal_regulatory_category
+      = ''FPL'' THEN 1 WHEN state <> ''FL'' AND internal_regulatory_category = ''NEER''
+      THEN 1 ELSE 0 END ) THEN 0 ELSE 1 END AS internal_reg_category_check FROM plant_details_silver;'
+    mustBe: 0
+    dimension: consistency
+- name: battery_sensor_feed_bronze
+  physicalName: battery_sensor_feed_bronze
+  physicalType: table
+  logicalType: object
+  description: Raw live sensor feed data from battery energy storage systems (Bronze
+    layer).
+  tags:
+  - category:timeseries
+  - category:telemetry
+  - layer:bronze
+  - latency:real_time
+  - sla:tier1
+  properties:
+  - name: reading_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for sensor reading.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Foreign key reference to plant_details.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: component_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Identifier for specific battery component or module.
+    tags:
+    - pii:false
+  - name: sensor_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the sensor.
+    tags:
+    - pii:false
+  - name: sensor_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Type of sensor measurement (voltage, current, temperature, soc, soh,
+      power).
+    tags:
+    - pii:false
+    - category:sensor_classification
+  - name: timestamp
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when sensor reading was captured.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: value
+    physicalType: double
+    logicalType: decimal(18,6)
+    required: true
+    description: Sensor reading value.
+    tags:
+    - pii:false
+  - name: unit_of_measure
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unit of measurement (V, A, C, %, MW, MWh, kW).
+    tags:
+    - pii:false
+  - name: state_of_charge_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Battery state of charge percentage (0-100%).
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: state_of_health_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Battery state of health percentage (0-100%).
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: charge_discharge_cycles
+    physicalType: integer
+    logicalType: bigint
+    required: false
+    description: Cumulative number of charge/discharge cycles.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current power output/input in megawatts (positive=discharge, negative=charge).
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Energy stored or discharged in megawatt-hours.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: voltage_v
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Voltage reading in volts.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: current_a
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current reading in amperes.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Temperature reading in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: quality_flag
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Data quality indicator: GOOD, SUSPECT, BAD, NOT_VERIFIED.'
+    tags:
+    - pii:false
+    - category:data_quality
+  - name: alarm_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Current alarm status: NORMAL, WARNING, CRITICAL, FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: ingestion_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when data was ingested into system.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'battery_sensor_feed_bronze' table has data
+    query: SELECT COUNT(*) FROM battery_sensor_feed_bronze
+    dimension: completeness
+    mustBeGreaterThan: 0
+  - type: sql
+    description: Ensures that reading_id in 'battery_sensor_feed_bronze' is always
+      populated
+    query: ' SELECT COUNT(*) AS null_reading_id_count FROM battery_sensor_feed_bronze
+      WHERE reading_id IS NULL;'
+    mustBe: 0
+    dimension: completeness
+  - type: sql
+    description: Ensures state_of_charge_pct in 'battery_sensor_feed_bronze' is between
+      0 and 100 when present
+    query: ' SELECT CASE WHEN COUNT(*) = SUM(CASE WHEN state_of_charge_pct BETWEEN
+      0 AND 100 OR state_of_charge_pct IS NULL THEN 1 ELSE 0 END) THEN 0 ELSE 1 END
+      AS soc_range_check FROM battery_sensor_feed_bronze;'
+    mustBe: 0
+    dimension: accuracy
+  - type: sql
+    description: Ensures quality_flag in 'battery_sensor_feed_bronze' is in the allowed
+      set when present
+    query: ' SELECT CASE WHEN COUNT(*) = SUM(CASE WHEN quality_flag IN (''GOOD'',''SUSPECT'',''BAD'',''NOT_VERIFIED'')
+      OR quality_flag IS NULL THEN 1 ELSE 0 END) THEN 0 ELSE 1 END AS quality_flag_check
+      FROM battery_sensor_feed_bronze;'
+    mustBe: 0
+    dimension: consistency
+- name: battery_sensor_feed_silver
+  physicalName: battery_sensor_feed_silver
+  physicalType: table
+  logicalType: object
+  description: Cleaned and conformed battery sensor feed data (Silver layer).
+  tags:
+  - category:timeseries
+  - category:telemetry
+  - layer:silver
+  - latency:real_time
+  - sla:tier1
+  properties:
+  - name: reading_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for sensor reading.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Foreign key reference to plant_details_silver.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: component_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Identifier for specific battery component or module.
+    tags:
+    - pii:false
+  - name: sensor_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the sensor.
+    tags:
+    - pii:false
+  - name: sensor_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Type of sensor measurement (voltage, current, temperature, soc, soh,
+      power).
+    tags:
+    - pii:false
+    - category:sensor_classification
+  - name: timestamp
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when sensor reading was captured.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: value
+    physicalType: double
+    logicalType: decimal(18,6)
+    required: true
+    description: Sensor reading value.
+    tags:
+    - pii:false
+  - name: unit_of_measure
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unit of measurement (V, A, C, %, MW, MWh, kW).
+    tags:
+    - pii:false
+  - name: state_of_charge_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Battery state of charge percentage (0-100%).
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: state_of_health_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Battery state of health percentage (0-100%).
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: charge_discharge_cycles
+    physicalType: integer
+    logicalType: bigint
+    required: false
+    description: Cumulative number of charge/discharge cycles.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current power output/input in megawatts (positive=discharge, negative=charge).
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Energy stored or discharged in megawatt-hours.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: voltage_v
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Voltage reading in volts.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: current_a
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current reading in amperes.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Temperature reading in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: quality_flag
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Data quality indicator: GOOD, SUSPECT, BAD, NOT_VERIFIED.'
+    tags:
+    - pii:false
+    - category:data_quality
+  - name: alarm_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Current alarm status: NORMAL, WARNING, CRITICAL, FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: ingestion_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when data was ingested into system.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'battery_sensor_feed_silver' table has data
+    query: SELECT COUNT(*) FROM battery_sensor_feed_silver
+    dimension: completeness
+    mustBeGreaterThan: 0
+  - type: sql
+    description: Ensures that every plant_id in 'battery_sensor_feed_silver' exists
+      in 'plant_details_silver'
+    query: ' SELECT CASE WHEN COUNT(*) = SUM( CASE WHEN plant_id IN (SELECT plant_id
+      FROM plant_details_silver) THEN 1 ELSE 0 END ) THEN 0 ELSE 1 END AS battery_fk_plant_check
+      FROM battery_sensor_feed_silver;'
+    mustBe: 0
+    dimension: consistency
+  - type: sql
+    description: Ensures state_of_charge_pct in 'battery_sensor_feed_silver' is between
+      0 and 100 when present
+    query: ' SELECT CASE WHEN COUNT(*) = SUM(CASE WHEN state_of_charge_pct BETWEEN
+      0 AND 100 OR state_of_charge_pct IS NULL THEN 1 ELSE 0 END) THEN 0 ELSE 1 END
+      AS soc_range_check FROM battery_sensor_feed_silver;'
+    mustBe: 0
+    dimension: accuracy
+  - type: sql
+    description: Ensures timestamp in 'battery_sensor_feed_silver' is always populated
+    query: ' SELECT COUNT(*) AS null_timestamp_count FROM battery_sensor_feed_silver
+      WHERE timestamp IS NULL;'
+    mustBe: 0
+    dimension: completeness
+- name: solar_sensor_feed_bronze
+  physicalName: solar_sensor_feed_bronze
+  physicalType: table
+  logicalType: object
+  description: Raw live sensor feed data from solar photovoltaic power plants (Bronze
+    layer).
+  tags:
+  - category:timeseries
+  - category:telemetry
+  - layer:bronze
+  - latency:real_time
+  - sla:tier1
+  properties:
+  - name: reading_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for sensor reading.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Foreign key reference to plant_details.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: component_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Identifier for specific solar component (inverter, combiner box,
+      tracker).
+    tags:
+    - pii:false
+  - name: sensor_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the sensor.
+    tags:
+    - pii:false
+  - name: sensor_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Type of sensor measurement (irradiance, temperature, power, voltage,
+      current, tracking_angle).
+    tags:
+    - pii:false
+    - category:sensor_classification
+  - name: timestamp
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when sensor reading was captured.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: value
+    physicalType: double
+    logicalType: decimal(18,6)
+    required: true
+    description: Sensor reading value.
+    tags:
+    - pii:false
+  - name: unit_of_measure
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unit of measurement (W/m2, C, MW, kW, V, A, degrees).
+    tags:
+    - pii:false
+  - name: irradiance_wm2
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: false
+    description: Solar irradiance in watts per square meter.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: panel_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Solar panel temperature in Celsius.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: ambient_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Ambient air temperature in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current power generation in megawatts.
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Cumulative energy generated in megawatt-hours.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: dc_voltage_v
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: DC voltage from solar panels in volts.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: dc_current_a
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: DC current from solar panels in amperes.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: ac_voltage_v
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: AC voltage at inverter output in volts.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: ac_current_a
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: AC current at inverter output in amperes.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: inverter_efficiency_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Inverter conversion efficiency percentage.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: performance_ratio
+    physicalType: double
+    logicalType: decimal(5,4)
+    required: false
+    description: Performance ratio (actual/theoretical output).
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: tracker_angle_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Tracker angle in degrees (for tracking systems).
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: quality_flag
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Data quality indicator: GOOD, SUSPECT, BAD, NOT_VERIFIED.'
+    tags:
+    - pii:false
+    - category:data_quality
+  - name: alarm_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Current alarm status: NORMAL, WARNING, CRITICAL, FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: ingestion_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when data was ingested into system.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'solar_sensor_feed_bronze' table has data
+    query: SELECT COUNT(*) FROM solar_sensor_feed_bronze
+    dimension: completeness
+    mustBeGreaterThan: 0
+- name: solar_sensor_feed_silver
+  physicalName: solar_sensor_feed_silver
+  physicalType: table
+  logicalType: object
+  description: Cleaned and conformed solar sensor feed data (Silver layer).
+  tags:
+  - category:timeseries
+  - category:telemetry
+  - layer:silver
+  - latency:real_time
+  - sla:tier1
+  properties:
+  - name: reading_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for sensor reading.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Foreign key reference to plant_details_silver.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: component_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Identifier for specific solar component (inverter, combiner box,
+      tracker).
+    tags:
+    - pii:false
+  - name: sensor_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the sensor.
+    tags:
+    - pii:false
+  - name: sensor_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Type of sensor measurement (irradiance, temperature, power, voltage,
+      current, tracking_angle).
+    tags:
+    - pii:false
+    - category:sensor_classification
+  - name: timestamp
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when sensor reading was captured.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: value
+    physicalType: double
+    logicalType: decimal(18,6)
+    required: true
+    description: Sensor reading value.
+    tags:
+    - pii:false
+  - name: unit_of_measure
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unit of measurement (W/m2, C, MW, kW, V, A, degrees).
+    tags:
+    - pii:false
+  - name: irradiance_wm2
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: false
+    description: Solar irradiance in watts per square meter.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: panel_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Solar panel temperature in Celsius.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: ambient_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Ambient air temperature in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current power generation in megawatts.
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Cumulative energy generated in megawatt-hours.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: dc_voltage_v
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: DC voltage from solar panels in volts.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: dc_current_a
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: DC current from solar panels in amperes.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: ac_voltage_v
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: AC voltage at inverter output in volts.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: ac_current_a
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: AC current at inverter output in amperes.
+    tags:
+    - pii:false
+    - category:electrical_metrics
+  - name: inverter_efficiency_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Inverter conversion efficiency percentage.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: performance_ratio
+    physicalType: double
+    logicalType: decimal(5,4)
+    required: false
+    description: Performance ratio (actual/theoretical output).
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: tracker_angle_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Tracker angle in degrees (for tracking systems).
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: quality_flag
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Data quality indicator: GOOD, SUSPECT, BAD, NOT_VERIFIED.'
+    tags:
+    - pii:false
+    - category:data_quality
+  - name: alarm_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Current alarm status: NORMAL, WARNING, CRITICAL, FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: ingestion_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when data was ingested into system.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'solar_sensor_feed_silver' table has data
+    query: SELECT COUNT(*) FROM solar_sensor_feed_silver
+    dimension: completeness
+    mustBeGreaterThan: 0
+- name: wind_sensor_feed_bronze
+  physicalName: wind_sensor_feed_bronze
+  physicalType: table
+  logicalType: object
+  description: Raw live sensor feed data from wind turbine power plants (Bronze layer).
+  tags:
+  - category:timeseries
+  - category:telemetry
+  - layer:bronze
+  - latency:real_time
+  - sla:tier1
+  properties:
+  - name: reading_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for sensor reading.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Foreign key reference to plant_details.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: component_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Identifier for specific wind turbine or component.
+    tags:
+    - pii:false
+  - name: sensor_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the sensor.
+    tags:
+    - pii:false
+  - name: sensor_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Type of sensor measurement (wind_speed, wind_direction, power, rpm,
+      pitch_angle, yaw_angle, vibration).
+    tags:
+    - pii:false
+    - category:sensor_classification
+  - name: timestamp
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when sensor reading was captured.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: value
+    physicalType: double
+    logicalType: decimal(18,6)
+    required: true
+    description: Sensor reading value.
+    tags:
+    - pii:false
+  - name: unit_of_measure
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unit of measurement (m/s, degrees, MW, kW, RPM, mm/s).
+    tags:
+    - pii:false
+  - name: wind_speed_ms
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Wind speed in meters per second.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: wind_direction_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Wind direction in degrees (0-360, 0=North).
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current power generation in megawatts.
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Cumulative energy generated in megawatt-hours.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: rotor_speed_rpm
+    physicalType: double
+    logicalType: decimal(8,2)
+    required: false
+    description: Rotor rotational speed in revolutions per minute.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: generator_speed_rpm
+    physicalType: double
+    logicalType: decimal(8,2)
+    required: false
+    description: Generator rotational speed in revolutions per minute.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: blade_pitch_angle_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Blade pitch angle in degrees.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: nacelle_yaw_angle_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Nacelle yaw angle in degrees.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: gearbox_oil_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Gearbox oil temperature in Celsius.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: generator_bearing_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Generator bearing temperature in Celsius.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: nacelle_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Nacelle interior temperature in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: ambient_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Ambient air temperature in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: vibration_mms
+    physicalType: double
+    logicalType: decimal(8,3)
+    required: false
+    description: Vibration level in millimeters per second.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: power_coefficient
+    physicalType: double
+    logicalType: decimal(5,4)
+    required: false
+    description: Power coefficient (Cp) - efficiency of wind energy conversion.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: tip_speed_ratio
+    physicalType: double
+    logicalType: decimal(6,3)
+    required: false
+    description: Tip speed ratio (TSR) - blade tip speed / wind speed.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: quality_flag
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Data quality indicator: GOOD, SUSPECT, BAD, NOT_VERIFIED.'
+    tags:
+    - pii:false
+    - category:data_quality
+  - name: alarm_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Current alarm status: NORMAL, WARNING, CRITICAL, FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: turbine_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Turbine operational status: RUNNING, IDLE, STARTING, STOPPING, MAINTENANCE,
+      FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: ingestion_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when data was ingested into system.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'wind_sensor_feed_bronze' table has data
+    query: SELECT COUNT(*) FROM wind_sensor_feed_bronze
+    dimension: completeness
+    mustBeGreaterThan: 0
+- name: wind_sensor_feed_silver
+  physicalName: wind_sensor_feed_silver
+  physicalType: table
+  logicalType: object
+  description: Cleaned and conformed wind sensor feed data (Silver layer).
+  tags:
+  - category:timeseries
+  - category:telemetry
+  - layer:silver
+  - latency:real_time
+  - sla:tier1
+  properties:
+  - name: reading_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for sensor reading.
+    tags:
+    - pii:false
+    - pk:true
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Foreign key reference to plant_details_silver.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: component_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Identifier for specific wind turbine or component.
+    tags:
+    - pii:false
+  - name: sensor_id
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unique identifier for the sensor.
+    tags:
+    - pii:false
+  - name: sensor_type
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Type of sensor measurement (wind_speed, wind_direction, power, rpm,
+      pitch_angle, yaw_angle, vibration).
+    tags:
+    - pii:false
+    - category:sensor_classification
+  - name: timestamp
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when sensor reading was captured.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: value
+    physicalType: double
+    logicalType: decimal(18,6)
+    required: true
+    description: Sensor reading value.
+    tags:
+    - pii:false
+  - name: unit_of_measure
+    physicalType: string
+    logicalType: string
+    required: true
+    description: Unit of measurement (m/s, degrees, MW, kW, RPM, mm/s).
+    tags:
+    - pii:false
+  - name: wind_speed_ms
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Wind speed in meters per second.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: wind_direction_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Wind direction in degrees (0-360, 0=North).
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Current power generation in megawatts.
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Cumulative energy generated in megawatt-hours.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: rotor_speed_rpm
+    physicalType: double
+    logicalType: decimal(8,2)
+    required: false
+    description: Rotor rotational speed in revolutions per minute.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: generator_speed_rpm
+    physicalType: double
+    logicalType: decimal(8,2)
+    required: false
+    description: Generator rotational speed in revolutions per minute.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: blade_pitch_angle_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Blade pitch angle in degrees.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: nacelle_yaw_angle_degrees
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Nacelle yaw angle in degrees.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: gearbox_oil_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Gearbox oil temperature in Celsius.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: generator_bearing_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Generator bearing temperature in Celsius.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: nacelle_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Nacelle interior temperature in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: ambient_temperature_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Ambient air temperature in Celsius.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: vibration_mms
+    physicalType: double
+    logicalType: decimal(8,3)
+    required: false
+    description: Vibration level in millimeters per second.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: power_coefficient
+    physicalType: double
+    logicalType: decimal(5,4)
+    required: false
+    description: Power coefficient (Cp) - efficiency of wind energy conversion.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: tip_speed_ratio
+    physicalType: double
+    logicalType: decimal(6,3)
+    required: false
+    description: Tip speed ratio (TSR) - blade tip speed / wind speed.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: quality_flag
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Data quality indicator: GOOD, SUSPECT, BAD, NOT_VERIFIED.'
+    tags:
+    - pii:false
+    - category:data_quality
+  - name: alarm_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Current alarm status: NORMAL, WARNING, CRITICAL, FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: turbine_status
+    physicalType: string
+    logicalType: string
+    required: false
+    description: 'Turbine operational status: RUNNING, IDLE, STARTING, STOPPING, MAINTENANCE,
+      FAULT.'
+    tags:
+    - pii:false
+    - category:monitoring
+  - name: ingestion_datetime
+    physicalType: timestamp
+    logicalType: timestamp
+    required: true
+    description: Timestamp when data was ingested into system.
+    tags:
+    - pii:false
+    - category:audit
+  quality:
+  - type: sql
+    description: Ensures 'wind_sensor_feed_silver' table has data
+    query: SELECT COUNT(*) FROM wind_sensor_feed_silver
+    dimension: completeness
+    mustBeGreaterThan: 0
+- name: plant_operations_kpi_gold
+  physicalName: plant_operations_kpi_gold
+  physicalType: table
+  logicalType: object
+  description: Gold data product providing hourly plant-level KPIs across battery,
+    solar, and wind assets for operations, planning, and reporting.
+  tags:
+  - category:kpi_mart
+  - layer:gold
+  - grain:plant_hour
+  properties:
+  - name: plant_id
+    physicalType: string
+    logicalType: string
+    required: false
+    description: Unique identifier for the plant. Foreign key to plant_details_silver.
+    tags:
+    - pii:false
+    - fk:plant_details_silver.plant_id
+  - name: window_start
+    physicalType: timestamp
+    logicalType: timestamp
+    required: false
+    description: Start timestamp of the 1-hour aggregation window.
+    tags:
+    - pii:false
+    - category:timeseries
+  - name: avg_soc_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Average battery state of charge percentage over the window.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: min_soc_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Minimum battery state of charge percentage over the window.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: max_soc_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Maximum battery state of charge percentage over the window.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: avg_soh_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Average battery state of health percentage over the window.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: batt_energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Total battery energy charged/discharged in megawatt-hours over the
+      window.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: batt_avg_temp_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Average battery temperature in Celsius over the window.
+    tags:
+    - pii:false
+    - category:environmental_metrics
+  - name: batt_total_cycles
+    physicalType: long
+    logicalType: bigint
+    required: false
+    description: Sum of charge/discharge cycles across readings in the window.
+    tags:
+    - pii:false
+    - category:battery_metrics
+  - name: solar_energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Total solar energy generated in megawatt-hours over the window.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: solar_avg_power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Average solar power in megawatts over the window.
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: solar_avg_pr
+    physicalType: double
+    logicalType: decimal(5,4)
+    required: false
+    description: Average solar performance ratio over the window.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: solar_avg_inv_eff_pct
+    physicalType: double
+    logicalType: decimal(5,2)
+    required: false
+    description: Average inverter efficiency percentage over the window.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: solar_avg_irradiance_wm2
+    physicalType: double
+    logicalType: decimal(10,2)
+    required: false
+    description: Average solar irradiance in W/m2 over the window.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: solar_avg_panel_temp_c
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Average solar panel temperature in Celsius over the window.
+    tags:
+    - pii:false
+    - category:solar_metrics
+  - name: wind_energy_mwh
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Total wind energy generated in megawatt-hours over the window.
+    tags:
+    - pii:false
+    - category:energy_metrics
+  - name: wind_avg_power_mw
+    physicalType: double
+    logicalType: decimal(10,3)
+    required: false
+    description: Average wind power in megawatts over the window.
+    tags:
+    - pii:false
+    - category:power_metrics
+  - name: wind_avg_speed_ms
+    physicalType: double
+    logicalType: decimal(6,2)
+    required: false
+    description: Average wind speed in meters per second over the window.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: wind_avg_cp
+    physicalType: double
+    logicalType: decimal(5,4)
+    required: false
+    description: Average wind power coefficient (Cp) over the window.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: wind_avg_tsr
+    physicalType: double
+    logicalType: decimal(6,3)
+    required: false
+    description: Average wind tip speed ratio (TSR) over the window.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: wind_avg_vibration_mms
+    physicalType: double
+    logicalType: decimal(8,3)
+    required: false
+    description: Average turbine vibration in mm/s over the window.
+    tags:
+    - pii:false
+    - category:wind_metrics
+  - name: wind_availability_ratio
+    physicalType: double
+    logicalType: decimal(6,4)
+    required: false
+    description: Fraction of wind readings in RUNNING status over the window (availability).
+    tags:
+    - pii:false
+    - category:availability_metric
+  quality:
+  - type: sql
+    description: Ensures 'plant_operations_kpi_gold' table has data
+    query: SELECT COUNT(*) FROM plant_operations_kpi_gold
+    dimension: completeness
+    mustBeGreaterThan: 0
+  - type: sql
+    description: Ensures that 'plant_operations_kpi_gold' has a unique row per (plant_id,
+      window_start)
+    query: ' SELECT CASE WHEN COUNT(*) = COUNT(DISTINCT plant_id, window_start) THEN
+      0 ELSE 1 END AS grain_uniqueness_check FROM plant_operations_kpi_gold;'
+    mustBe: 0
+    dimension: uniqueness
+  - type: sql
+    description: "Ensures SOC aggregates in 'plant_operations_kpi_gold' are consistent\
+      \ and within 0\u2013100 when present"
+    query: ' SELECT CASE WHEN COUNT(*) = SUM( CASE WHEN min_soc_pct IS NULL OR max_soc_pct
+      IS NULL OR avg_soc_pct IS NULL THEN 1 WHEN 0 <= min_soc_pct AND min_soc_pct
+      <= avg_soc_pct AND avg_soc_pct <= max_soc_pct AND max_soc_pct <= 100 THEN 1
+      ELSE 0 END ) THEN 0 ELSE 1 END AS soc_aggregate_consistency_check FROM plant_operations_kpi_gold;'
+    mustBe: 0
+    dimension: consistency
+  - type: sql
+    description: Ensures wind_availability_ratio in 'plant_operations_kpi_gold' is
+      between 0 and 1 when present
+    query: ' SELECT CASE WHEN COUNT(*) = SUM( CASE WHEN wind_availability_ratio BETWEEN
+      0 AND 1 OR wind_availability_ratio IS NULL THEN 1 ELSE 0 END ) THEN 0 ELSE 1
+      END AS wind_availability_range_check FROM plant_operations_kpi_gold;'
+    mustBe: 0
+    dimension: accuracy
+tags:
+- team:energy_operations
+- scope:production
+- domain:renewable_energy
+servers:
+- server: sandbox
+  type: databricks
+  host: https://e2-demo-field-eng.cloud.databricks.com/
+  catalog: kailyn_klaassen
+  schema: odcs
+support:
+- channel: Test Teams Channel (Interactive)
+  tool: teams
+  scope: interactive
+  url: https://teams.microsoft.com/channel/Test
+- channel: Test Teams Channel (Announcements)
+  tool: teams
+  scope: announcements
+  url: https://teams.microsoft.com/channel/Test/announcements
+- channel: Test Email
+  tool: email
+  scope: announcements
+  url: mailto:test@altmiller.com
+  description: Team email for all team announcements
+slaDefaultElement: partitionColumn
+slaProperties:
+- property: data_freshness
+  value: 1
+  unity: d
+  element: plant_operations_kpi_gold
+- property: retention
+  value: 3
+  unity: y
+  element: plant_operations_kpi_gold.window_start
+- property: frequency
+  value: 1
+  unity: h
+  element: battery_sensor_feed_bronze.ingestion_datetime
+- property: timeOfAvailability
+  value: 00:00-23:59
+  element: battery_sensor_feed_bronze.ingestion_datetime
+  driver: analytics
+team:
+- username: ceastwood
+  role: Data Scientist
+  dateIn: '2024-08-02'
+  dateOut: '2024-10-01'
+  replacedByUsername: mhopper
+- username: areese
+  role: Data Scientist
+  dateIn: '2024-10-01'
+- username: rcrabtree
+  role: Data Engineer
+  dateIn: '2024-10-01'
+- username: kailynklaassen@databricks.com
+  role: Owner
+  dateIn: '2024-10-01'
+  comment: Full owner admin access
+  name: David Austin
+roles:
+- role: data_contract_user
+  access: read
+  firstlevelApprovers: Product Domain Manager
+  secondlevelApprovers: Product Domain Manager
+- role: data_contract_contributors
+  access: write
+  firstlevelApprovers: Product Domain Manager
+  secondlevelApprovers: Product Domain Manager
+- role: data_contract_admins
+  access: admin
+  firstlevelApprovers: Product Domain Manager
+  secondlevelApprovers: Product Domain Manager
+- role: data_contract_owners
+  access: owner
+  firstlevelApprovers: Product Domain Manager
+  secondlevelApprovers: Product Domain Manager
+price:
+  priceAmount: 9.95
+  priceCurrency: USD
+  priceUnit: megabyte
